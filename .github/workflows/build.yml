@@ -19,7 +19,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends \
           build-essential libncurses-dev libssl-dev bison flex \
-          libelf-dev bc git curl cpio python3 gcc \
+          libelf-dev bc git curl cpio python3 python-is-python3 gcc \
           libc6:i386 libstdc++6:i386 zlib1g:i386 || true
 
     - name: Download Radxa ARM GCC 4.6 toolchain
@@ -33,6 +33,9 @@ jobs:
         export PATH=$HOME/toolchain/bin:$PATH
         export ARCH=arm
         export CROSS_COMPILE=arm-eabi-
+
+        # Make sure all helper scripts are executable
+        chmod -R +x scripts/
 
         make cyanogenmod_m4_defconfig
         make -j$(nproc) zImage
