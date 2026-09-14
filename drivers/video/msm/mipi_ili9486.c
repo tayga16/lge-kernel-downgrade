@@ -197,8 +197,10 @@ static char config_tear_off[2] = {0x34, 0x00};
 static struct dsi_cmd_desc ili9486_tear_off_cmd = {DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(config_tear_off), config_tear_off};
 #endif
 
+#if 0
 static char config_tear_on[2] = {0x35, 0x00};
 static struct dsi_cmd_desc ili9486_tear_on_cmd = {DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(config_tear_on), config_tear_on};
+#endif
 
 /* --------------------end configuration-----------------------*/
 
