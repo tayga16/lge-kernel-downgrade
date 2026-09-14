@@ -19,16 +19,21 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends \
           build-essential libncurses-dev libssl-dev bison flex \
-          libelf-dev bc git curl cpio python3 python-is-python3 gcc rsync \
+          libelf-dev bc git curl cpio python3 python-is-python3 gcc \
           libc6:i386 libstdc++6:i386 zlib1g:i386 || true
 
-    - name: Restore case-sensitive Linux kernel files
+    - name: Restore clean case-sensitive Netfilter subsystem
       run: |
-        echo "Restoring case-sensitive files lost during Windows extraction..."
+        echo "Cloning upstream branch to restore case-sensitive netfilter files corrupted by Windows..."
         git clone --depth 1 -b android-msm-3.4 https://github.com/CyanogenMod/lge-kernel-p700.git /tmp/upstream
-        rsync -a --ignore-existing /tmp/upstream/include/ include/
-        rsync -a --ignore-existing /tmp/upstream/net/ net/
-        rsync -a --ignore-existing /tmp/upstream/drivers/ drivers/
+        rm -rf include/linux/netfilter include/linux/netfilter_ipv4 include/linux/netfilter_ipv6
+        rm -rf net/netfilter net/ipv4/netfilter net/ipv6/netfilter
+        cp -r /tmp/upstream/include/linux/netfilter include/linux/
+        cp -r /tmp/upstream/include/linux/netfilter_ipv4 include/linux/
+        cp -r /tmp/upstream/include/linux/netfilter_ipv6 include/linux/
+        cp -r /tmp/upstream/net/netfilter net/
+        cp -r /tmp/upstream/net/ipv4/netfilter net/ipv4/
+        cp -r /tmp/upstream/net/ipv6/netfilter net/ipv6/
         rm -rf /tmp/upstream
 
     - name: Download Radxa ARM GCC 4.6 toolchain
