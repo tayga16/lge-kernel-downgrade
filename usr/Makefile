@@ -29,7 +29,8 @@ obj-$(CONFIG_BLK_DEV_INITRD) := initramfs_data.o
 # initramfs_data.o contains the compressed initramfs_data.cpio image.
 # The image is included using .incbin, a dependency which is not
 # tracked automatically.
-$(obj)/initramfs_data.o: $(obj)/initramfs_data.cpio$(suffix_y) FORCE
+$(obj)/initramfs_data.o: $(src)/initramfs_data.S $(obj)/initramfs_data.cpio$(suffix_y) FORCE
+	$(call if_changed_dep,as_o_S)
 
 #####
 # Generate the initramfs cpio archive

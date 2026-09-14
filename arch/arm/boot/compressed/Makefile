@@ -189,7 +189,8 @@ $(obj)/vmlinux: $(obj)/vmlinux.lds $(obj)/$(HEAD) $(obj)/piggy.$(suffix_y).o \
 $(obj)/piggy.$(suffix_y): $(obj)/../Image FORCE
 	$(call if_changed,$(suffix_y))
 
-$(obj)/piggy.$(suffix_y).o:  $(obj)/piggy.$(suffix_y) FORCE
+$(obj)/piggy.$(suffix_y).o: $(src)/piggy.$(suffix_y).S $(obj)/piggy.$(suffix_y) FORCE
+	$(call if_changed_dep,as_o_S)
 
 CFLAGS_font.o := -Dstatic=
 
