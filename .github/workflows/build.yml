@@ -28,12 +28,6 @@ jobs:
         # Verify toolchain runs
         $HOME/toolchain/bin/arm-eabi-gcc --version
 
-    - name: Download and build mkbootimg
-      run: |
-        curl -sL https://raw.githubusercontent.com/osm0sis/mkbootimg/master/mkbootimg.c -o /tmp/mkbootimg.c
-        gcc /tmp/mkbootimg.c -o /tmp/mkbootimg
-        chmod +x /tmp/mkbootimg
-
     - name: Build Kernel zImage
       run: |
         export PATH=$HOME/toolchain/bin:$PATH
@@ -50,7 +44,7 @@ jobs:
 
         # Real Android boot image
         if [ -f ramdisk_real_android.img ]; then
-          /tmp/mkbootimg \
+          python3 scripts/mkbootimg.py \
             --kernel out/zImage \
             --ramdisk ramdisk_real_android.img \
             --base 0x80000000 \
@@ -65,7 +59,7 @@ jobs:
 
         # Diagnostic FB test boot image
         if [ -f ramdisk_fbtest.img ]; then
-          /tmp/mkbootimg \
+          python3 scripts/mkbootimg.py \
             --kernel out/zImage \
             --ramdisk ramdisk_fbtest.img \
             --base 0x80000000 \
