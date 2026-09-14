@@ -1,0 +1,81 @@
+name: Build LG Optimus L5 Kernel
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          build-essential libncurses5-dev libssl-dev bison flex \
+          libelf-dev bc git curl cpio python3 python2 gcc
+
+    - name: Download Radxa ARM GCC 4.6 toolchain
+      run: |
+        git clone --depth 1 https://github.com/radxa/android-platform-prebuilts-gcc-linux-x86-arm-arm-eabi-4.6.git $HOME/toolchain
+
+    - name: Download and build mkbootimg
+      run: |
+        curl -sL https://raw.githubusercontent.com/osm0sis/mkbootimg/master/mkbootimg.c -o /tmp/mkbootimg.c
+        gcc /tmp/mkbootimg.c -o /tmp/mkbootimg
+        chmod +x /tmp/mkbootimg
+
+    - name: Build Kernel zImage
+      run: |
+        export PATH=$HOME/toolchain/bin:$PATH
+        export ARCH=arm
+        export CROSS_COMPILE=arm-eabi-
+
+        make cyanogenmod_m4_defconfig
+        make -j$(nproc) zImage
+
+    - name: Package boot.img images
+      run: |
+        mkdir -p out
+        cp arch/arm/boot/zImage out/zImage
+
+        # Real Android boot image
+        if [ -f ramdisk_real_android.img ]; then
+          /tmp/mkbootimg \
+            --kernel out/zImage \
+            --ramdisk ramdisk_real_android.img \
+            --base 0x80000000 \
+            --pagesize 2048 \
+            --kernel_offset 0x00008000 \
+            --ramdisk_offset 0x01000000 \
+            --tags_offset 0x00000100 \
+            --cmdline "console=tty0 console=ttyMSM0,115200,n8 androidboot.hardware=m4 loglevel=7" \
+            -o out/boot-real-android.img
+          echo "Created out/boot-real-android.img"
+        fi
+
+        # Diagnostic FB test boot image
+        if [ -f ramdisk_fbtest.img ]; then
+          /tmp/mkbootimg \
+            --kernel out/zImage \
+            --ramdisk ramdisk_fbtest.img \
+            --base 0x80000000 \
+            --pagesize 2048 \
+            --kernel_offset 0x00008000 \
+            --ramdisk_offset 0x01000000 \
+            --tags_offset 0x00000100 \
+            --cmdline "console=ttyMSM0,115200,n8 androidboot.hardware=m4 debug ignore_loglevel loglevel=8 log_buf_len=1M" \
+            -o out/boot-fbtest.img
+          echo "Created out/boot-fbtest.img"
+        fi
+
+    - name: Upload Kernel and boot.img artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: e610-kernel-artifacts
+        path: out/
