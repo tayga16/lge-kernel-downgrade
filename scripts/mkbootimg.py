@@ -91,7 +91,7 @@ def main():
     # 32s - id
     # 1024s - extra_cmdline
     header = struct.pack(
-        '<8s8II16s512s32s1024s',
+        '<8s10I16s512s32s1024s',
         BOOT_MAGIC,
         kernel_size, kernel_addr,
         ramdisk_size, ramdisk_addr,
