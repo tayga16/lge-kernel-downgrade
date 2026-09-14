@@ -193,12 +193,12 @@ static char config_esd_status_F7[1] = {0xF7};
 static char config_esd_status_B5[1] = {0xB5};
 static char config_esd_status_0A[1] = {0x0A};
 
+static char config_tear_off[2] = {0x34, 0x00};
+static struct dsi_cmd_desc ili9486_tear_off_cmd = {DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(config_tear_off), config_tear_off};
 #endif
 
 static char config_tear_on[2] = {0x35, 0x00};
-static char config_tear_off[2] = {0x34, 0x00};
 static struct dsi_cmd_desc ili9486_tear_on_cmd = {DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(config_tear_on), config_tear_on};
-static struct dsi_cmd_desc ili9486_tear_off_cmd = {DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(config_tear_off), config_tear_off};
 
 /* --------------------end configuration-----------------------*/
 
