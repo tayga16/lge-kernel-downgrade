@@ -9,6 +9,8 @@
 	mcr	p15, 0, \tp, c13, c0, 3		@ set TLS register
 	mov	\tmp1, #0
 	mcr	p15, 0, \tmp1, c13, c0, 2	@ clear user r/w TLS register
+	mov	\tmp2, #0xffff0fff
+	str	\tp, [\tmp2, #-15]		@ set TLS value at 0xffff0ff0
 	.endm
 
 	.macro set_tls_v6, tp, tmp1, tmp2
