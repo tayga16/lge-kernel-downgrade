@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
     - name: Checkout repository
@@ -15,14 +15,18 @@ jobs:
 
     - name: Install build dependencies
       run: |
+        sudo dpkg --add-architecture i386 || true
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends \
-          build-essential libncurses5-dev libssl-dev bison flex \
-          libelf-dev bc git curl cpio python3 python2 gcc
+          build-essential libncurses-dev libssl-dev bison flex \
+          libelf-dev bc git curl cpio python3 gcc \
+          libc6:i386 libstdc++6:i386 zlib1g:i386 || true
 
     - name: Download Radxa ARM GCC 4.6 toolchain
       run: |
         git clone --depth 1 https://github.com/radxa/android-platform-prebuilts-gcc-linux-x86-arm-arm-eabi-4.6.git $HOME/toolchain
+        # Verify toolchain runs
+        $HOME/toolchain/bin/arm-eabi-gcc --version
 
     - name: Download and build mkbootimg
       run: |
