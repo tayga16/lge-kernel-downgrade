@@ -193,11 +193,12 @@ static char config_esd_status_F7[1] = {0xF7};
 static char config_esd_status_B5[1] = {0xB5};
 static char config_esd_status_0A[1] = {0x0A};
 
+#endif
+
 static char config_tear_on[2] = {0x35, 0x00};
 static char config_tear_off[2] = {0x34, 0x00};
 static struct dsi_cmd_desc ili9486_tear_on_cmd = {DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(config_tear_on), config_tear_on};
 static struct dsi_cmd_desc ili9486_tear_off_cmd = {DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(config_tear_off), config_tear_off};
-#endif
 
 /* --------------------end configuration-----------------------*/
 
@@ -221,8 +222,9 @@ static struct dsi_cmd_desc ili9486_init_on_cmds[] = {
 	{DTYPE_DCS_WRITE1, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_pixel_format),config_pixel_format},
 	{DTYPE_GEN_WRITE2, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_entry_mode_set),config_entry_mode_set},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_frame_rate),config_frame_rate},
-    {DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,      sizeof(config_F7), config_F7},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_blacnking_porch_control),config_blacnking_porch_control}
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,      sizeof(config_F7), config_F7},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_blacnking_porch_control),config_blacnking_porch_control},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_tear_on), config_tear_on}
 };
 
 static struct dsi_cmd_desc ili9486_init_on_new_cmds[] = {
@@ -242,8 +244,9 @@ static struct dsi_cmd_desc ili9486_init_on_new_cmds[] = {
 	{DTYPE_DCS_WRITE1, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_pixel_format),config_pixel_format},
 	{DTYPE_GEN_WRITE2, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_entry_mode_set),config_entry_mode_set},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_frame_rate),config_frame_rate},
-    {DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,      sizeof(config_F7), config_F7},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_blacnking_porch_control),config_blacnking_porch_control}
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,      sizeof(config_F7), config_F7},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_blacnking_porch_control),config_blacnking_porch_control},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_tear_on), config_tear_on}
 };
 
 static struct dsi_cmd_desc ili9486_sleep_out_cmds[] = {
@@ -459,28 +462,16 @@ static int mipi_ili9486_lcd_on(struct platform_device *pdev)
 		return -EINVAL;
 	
 
-	if( 0){
-// when panic mode, lcd init no need.
-#if 0 //def CONFIG_LGE_HANDLE_PANIC
-		if(get_kernel_panicmode() == 2)
-			return 0;
-#endif
-		
+	platform_data = pdev;
+	printk("mipi_ili9486_lcd_on init booting\n");
+
+	/* Detect panel manufacturer/revision (old vs new) */
+	mipi_ili9486_status(pdev);
+	printk("%s, maker_id_result:%d\n", __func__, maker_id_result);
+
 #ifdef CONFIG_LGE_LCD_ESD_DETECTION
-		value = ILI9486_ESD_FIRST_BOOTING_TIME;
+	value = ILI9486_ESD_NON_FIRST_BOOTING_TIME;
 #endif
-		platform_data = pdev;		
-		printk("mipi_ili9486_lcd_on init booting\n");	
-		
-		//check ili9485 old or new
-   		mipi_ili9486_status(pdev);
-   		printk("%s, maker_id_result:%d\n",__func__, maker_id_result );
-	}
-    else{
-#ifdef CONFIG_LGE_LCD_ESD_DETECTION
-		value = ILI9486_ESD_NON_FIRST_BOOTING_TIME;
-#endif		
-    }
 
 #if ILI9486_TUNING_SET
 	if(init_boot == 1)
@@ -547,6 +538,9 @@ static int mipi_ili9486_lcd_on(struct platform_device *pdev)
 		printk("mipi_ili9486_disp_on_cmd..\n");
 		printk("mipi_ili9486_disp_on_cmd %s\n", ili9486_tmp);
 #endif
+
+		/* Enable Tearing Effect output line for MDP VSYNC synchronization */
+		mipi_dsi_cmds_tx(&ili9486_tx_buf, &ili9486_tear_on_cmd, 1);
 
 		mipi_set_tx_power_mode(0);
 		printk("mipi_ili9486_lcd_on FINISH\n");
@@ -937,11 +931,16 @@ err_device_put:
 
 static int mipi_ili9486_status(struct platform_device *pdev)
 {
+	int rc = gpio_request(GPIO_LCD_MAKER_ID, "lcd_maker_id");
+	if (!rc || rc == -EBUSY) {
+		gpio_tlmm_config(GPIO_CFG(GPIO_LCD_MAKER_ID, 0, GPIO_CFG_INPUT,
+				GPIO_CFG_PULL_UP, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+		gpio_direction_input(GPIO_LCD_MAKER_ID);
+	}
 	maker_id_result = gpio_get_value(GPIO_LCD_MAKER_ID);
-	printk("%s, maker_id_result:%d\n",__func__,maker_id_result );
+	printk("%s, maker_id_result:%d\n", __func__, maker_id_result);
 
-	 return maker_id_result;
-
+	return maker_id_result;
 }
 
 

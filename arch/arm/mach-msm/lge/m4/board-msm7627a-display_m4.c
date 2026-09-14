@@ -183,6 +183,7 @@ static int msm_fb_get_lane_config(void)
 }
 
 #define GPIO_LCD_RESET 125
+#define GPIO_LCD_MAKER_ID 126
 static int dsi_gpio_initialized = 0;
 static int Isfirstbootend = 0;
 /* LGE_CHANGE_S : lcd regulator patch
@@ -235,6 +236,14 @@ int mipi_dsi_panel_power(int on)
 					__func__, rc);
 		}
 
+		/* Configure Maker ID GPIO */
+		rc = gpio_request(GPIO_LCD_MAKER_ID, "lcd_maker_id");
+		if (!rc) {
+			gpio_tlmm_config(GPIO_CFG(GPIO_LCD_MAKER_ID, 0, GPIO_CFG_INPUT,
+					GPIO_CFG_PULL_UP, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+			gpio_direction_input(GPIO_LCD_MAKER_ID);
+		}
+
 		dsi_gpio_initialized = 1;
 	}
 
@@ -251,23 +260,15 @@ int mipi_dsi_panel_power(int on)
 			pr_err("%s: gpio_direction_output failed for lcd_reset\n", __func__);
 			goto vreg_put_dsi_v28;
 		}
-		if (Isfirstbootend) 
-		{
-			printk("gpio lcd reset on...\n");
-			msleep(10);
-			gpio_set_value(GPIO_LCD_RESET, 0);
-			msleep(10);
-			gpio_set_value(GPIO_LCD_RESET, 1);
-			//LGE_CHANGE_S : youngbae.choi@lge.com [2012-04-28]		
-			//Although Recommand is 120ms, 60ms is no problem when wake up. (120ms --> 60ms)
-			msleep(120);
-			//LGE_CHANGE_E : youngbae.choi@lge.com [2012-04-28]
 
-			
-		} else{
-			Isfirstbootend = 1;
-		}		
-		
+		/* Always pulse hardware reset on panel power-on to sync controller and timing */
+		printk("gpio lcd reset on...\n");
+		msleep(10);
+		gpio_set_value(GPIO_LCD_RESET, 0);
+		msleep(10);
+		gpio_set_value(GPIO_LCD_RESET, 1);
+		msleep(120);
+		Isfirstbootend = 1;
 	} else {
 		rc = regulator_disable(vreg_mipi_dsi_v28);
 		if (rc) {
