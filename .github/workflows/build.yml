@@ -64,12 +64,12 @@ jobs:
           python3 scripts/mkbootimg.py \
             --kernel out/zImage \
             --ramdisk ramdisk_real_android.img \
-            --base 0x80000000 \
+            --base 0x00200000 \
             --pagesize 2048 \
             --kernel_offset 0x00008000 \
             --ramdisk_offset 0x01000000 \
             --tags_offset 0x00000100 \
-            --cmdline "console=tty0 console=ttyMSM0,115200,n8 androidboot.hardware=m4 loglevel=7" \
+            --cmdline "console=tty0 console=ttyMSM0,115200,n8 androidboot.hardware=m4 loglevel=7 lge.signed_image=false" \
             -o out/boot-real-android.img
           echo "Created out/boot-real-android.img"
         fi
@@ -79,12 +79,12 @@ jobs:
           python3 scripts/mkbootimg.py \
             --kernel out/zImage \
             --ramdisk ramdisk_fbtest.img \
-            --base 0x80000000 \
+            --base 0x00200000 \
             --pagesize 2048 \
             --kernel_offset 0x00008000 \
             --ramdisk_offset 0x01000000 \
             --tags_offset 0x00000100 \
-            --cmdline "console=ttyMSM0,115200,n8 androidboot.hardware=m4 debug ignore_loglevel loglevel=8 log_buf_len=1M" \
+            --cmdline "console=tty0 console=ttyMSM0,115200,n8 androidboot.hardware=m4 debug ignore_loglevel loglevel=8 log_buf_len=1M lge.signed_image=false" \
             -o out/boot-fbtest.img
           echo "Created out/boot-fbtest.img"
         fi
