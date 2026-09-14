@@ -261,14 +261,16 @@ int mipi_dsi_panel_power(int on)
 			goto vreg_put_dsi_v28;
 		}
 
-		/* Always pulse hardware reset on panel power-on to sync controller and timing */
-		printk("gpio lcd reset on...\n");
-		msleep(10);
-		gpio_set_value(GPIO_LCD_RESET, 0);
-		msleep(10);
-		gpio_set_value(GPIO_LCD_RESET, 1);
-		msleep(120);
-		Isfirstbootend = 1;
+		if (Isfirstbootend) {
+			printk("gpio lcd reset on...\n");
+			msleep(10);
+			gpio_set_value(GPIO_LCD_RESET, 0);
+			msleep(10);
+			gpio_set_value(GPIO_LCD_RESET, 1);
+			msleep(120);
+		} else {
+			Isfirstbootend = 1;
+		}
 	} else {
 		rc = regulator_disable(vreg_mipi_dsi_v28);
 		if (rc) {

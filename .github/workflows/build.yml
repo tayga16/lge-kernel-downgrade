@@ -81,7 +81,7 @@ jobs:
             --kernel_offset 0x00008000 \
             --ramdisk_offset 0x01200000 \
             --tags_offset 0x00000100 \
-            --cmdline "console=tty0 console=ttyMSM0,115200,n8 androidboot.hardware=m4 loglevel=7 lge.signed_image=false" \
+            --cmdline "androidboot.hardware=m4 lge.signed_image=false" \
             -o out/boot-real-android-4096.img
           echo "Created out/boot-real-android-4096.img (pagesize 4096)"
         fi

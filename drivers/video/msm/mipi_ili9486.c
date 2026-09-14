@@ -223,8 +223,7 @@ static struct dsi_cmd_desc ili9486_init_on_cmds[] = {
 	{DTYPE_GEN_WRITE2, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_entry_mode_set),config_entry_mode_set},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_frame_rate),config_frame_rate},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,      sizeof(config_F7), config_F7},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_blacnking_porch_control),config_blacnking_porch_control},
-	{DTYPE_DCS_WRITE1, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_tear_on), config_tear_on}
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_blacnking_porch_control),config_blacnking_porch_control}
 };
 
 static struct dsi_cmd_desc ili9486_init_on_new_cmds[] = {
@@ -245,8 +244,7 @@ static struct dsi_cmd_desc ili9486_init_on_new_cmds[] = {
 	{DTYPE_GEN_WRITE2, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_entry_mode_set),config_entry_mode_set},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_frame_rate),config_frame_rate},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,      sizeof(config_F7), config_F7},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_blacnking_porch_control),config_blacnking_porch_control},
-	{DTYPE_DCS_WRITE1, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_tear_on), config_tear_on}
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_blacnking_porch_control),config_blacnking_porch_control}
 };
 
 static struct dsi_cmd_desc ili9486_sleep_out_cmds[] = {
@@ -465,8 +463,8 @@ static int mipi_ili9486_lcd_on(struct platform_device *pdev)
 	platform_data = pdev;
 	printk("mipi_ili9486_lcd_on init booting\n");
 
-	/* Detect panel manufacturer/revision (old vs new) */
-	mipi_ili9486_status(pdev);
+	/* Default to standard PANEL_ID_OLD_ILI9486 register set */
+	maker_id_result = PANEL_ID_OLD_ILI9486;
 	printk("%s, maker_id_result:%d\n", __func__, maker_id_result);
 
 #ifdef CONFIG_LGE_LCD_ESD_DETECTION
@@ -538,9 +536,6 @@ static int mipi_ili9486_lcd_on(struct platform_device *pdev)
 		printk("mipi_ili9486_disp_on_cmd..\n");
 		printk("mipi_ili9486_disp_on_cmd %s\n", ili9486_tmp);
 #endif
-
-		/* Enable Tearing Effect output line for MDP VSYNC synchronization */
-		mipi_dsi_cmds_tx(&ili9486_tx_buf, &ili9486_tear_on_cmd, 1);
 
 		mipi_set_tx_power_mode(0);
 		printk("mipi_ili9486_lcd_on FINISH\n");

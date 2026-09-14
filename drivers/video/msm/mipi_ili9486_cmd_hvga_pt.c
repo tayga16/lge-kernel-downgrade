@@ -14,7 +14,7 @@
 #include "mipi_dsi.h"
 #include "mipi_ili9486.h"
 
-#define USE_HW_VSYNC
+//#define USE_HW_VSYNC
 
 static struct msm_panel_info pinfo;
 
