@@ -19,8 +19,17 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends \
           build-essential libncurses-dev libssl-dev bison flex \
-          libelf-dev bc git curl cpio python3 python-is-python3 gcc \
+          libelf-dev bc git curl cpio python3 python-is-python3 gcc rsync \
           libc6:i386 libstdc++6:i386 zlib1g:i386 || true
+
+    - name: Restore case-sensitive Linux kernel files
+      run: |
+        echo "Restoring case-sensitive files lost during Windows extraction..."
+        git clone --depth 1 -b android-msm-3.4 https://github.com/CyanogenMod/lge-kernel-p700.git /tmp/upstream
+        rsync -a --ignore-existing /tmp/upstream/include/ include/
+        rsync -a --ignore-existing /tmp/upstream/net/ net/
+        rsync -a --ignore-existing /tmp/upstream/drivers/ drivers/
+        rm -rf /tmp/upstream
 
     - name: Download Radxa ARM GCC 4.6 toolchain
       run: |
