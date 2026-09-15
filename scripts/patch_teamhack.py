@@ -37,6 +37,29 @@ else:
 with open(traps_path, 'w', encoding='utf-8') as f:
     f.write(traps_content)
 
+# 2.5. Patch arch/arm/mm/mmu.c to remove L_PTE_RDONLY from MT_HIGH_VECTORS
+# This allows the kernel to write software TLS pointer to 0xffff0ff0 without Data Abort / Panic!
+mmu_path = os.path.join('kernel_src', 'arch', 'arm', 'mm', 'mmu.c')
+with open(mmu_path, 'r', encoding='utf-8') as f:
+    mmu_content = f.read()
+
+old_vec = """\t[MT_HIGH_VECTORS] = {
+\t\t.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
+\t\t\t\tL_PTE_USER | L_PTE_RDONLY,"""
+
+new_vec = """\t[MT_HIGH_VECTORS] = {
+\t\t.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
+\t\t\t\tL_PTE_USER,"""
+
+if old_vec in mmu_content:
+    mmu_content = mmu_content.replace(old_vec, new_vec)
+    print("Patched mmu.c: removed L_PTE_RDONLY from MT_HIGH_VECTORS!")
+else:
+    print("Warning: old_vec not found in mmu.c!")
+
+with open(mmu_path, 'w', encoding='utf-8') as f:
+    f.write(mmu_content)
+
 # 3. Use 100% verified working PhilZ recovery kernel config (with TLS fix & no SELinux)
 src_cfg = 'e610_working.config'
 dst_cfg1 = os.path.join('kernel_src', 'arch', 'arm', 'configs', 'cyanogenmod_m4_defconfig')

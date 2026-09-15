@@ -63,9 +63,24 @@ jobs:
             --kernel_offset 0x00008000 \
             --ramdisk_offset 0x01200000 \
             --tags_offset 0x00000100 \
-            --cmdline "androidboot.hardware=m4 lge.signed_image=false" \
+            --cmdline "androidboot.hardware=m4 androidboot.selinux=permissive lge.signed_image=false" \
             -o out/boot-cm7-m4.img
           echo "Created out/boot-cm7-m4.img (pagesize 4096)"
+        fi
+
+        # Real Android boot image with logging service (4096 pagesize)
+        if [ -f ramdisk_cm7_with_logging.img ]; then
+          python3 scripts/mkbootimg.py \
+            --kernel out/zImage \
+            --ramdisk ramdisk_cm7_with_logging.img \
+            --base 0x00200000 \
+            --pagesize 4096 \
+            --kernel_offset 0x00008000 \
+            --ramdisk_offset 0x01200000 \
+            --tags_offset 0x00000100 \
+            --cmdline "androidboot.hardware=m4 androidboot.selinux=permissive lge.signed_image=false" \
+            -o out/boot-cm7-m4-logged.img
+          echo "Created out/boot-cm7-m4-logged.img"
         fi
 
         # Real Android boot image (4096 pagesize)
@@ -78,7 +93,7 @@ jobs:
             --kernel_offset 0x00008000 \
             --ramdisk_offset 0x01200000 \
             --tags_offset 0x00000100 \
-            --cmdline "androidboot.hardware=m4 lge.signed_image=false" \
+            --cmdline "androidboot.hardware=m4 androidboot.selinux=permissive lge.signed_image=false" \
             -o out/boot-real-android-4096.img
           echo "Created out/boot-real-android-4096.img (pagesize 4096)"
         fi
