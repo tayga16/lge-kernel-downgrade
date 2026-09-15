@@ -22,57 +22,85 @@ jobs:
           libelf-dev bc git curl cpio python3 python-is-python3 gcc \
           libc6:i386 libstdc++6:i386 zlib1g:i386 || true
 
-    - name: Restore clean case-sensitive Netfilter subsystem
-      run: |
-        echo "Cloning upstream branch to restore case-sensitive netfilter files corrupted by Windows..."
-        git clone --depth 1 -b android-msm-3.4 https://github.com/CyanogenMod/lge-kernel-p700.git /tmp/upstream
-        rm -rf include/linux/netfilter include/linux/netfilter_ipv4 include/linux/netfilter_ipv6
-        rm -rf net/netfilter net/ipv4/netfilter net/ipv6/netfilter
-        cp -r /tmp/upstream/include/linux/netfilter include/linux/
-        cp -r /tmp/upstream/include/linux/netfilter_ipv4 include/linux/
-        cp -r /tmp/upstream/include/linux/netfilter_ipv6 include/linux/
-        cp -r /tmp/upstream/net/netfilter net/
-        cp -r /tmp/upstream/net/ipv4/netfilter net/ipv4/
-        cp -r /tmp/upstream/net/ipv6/netfilter net/ipv6/
-        rm -rf /tmp/upstream
-
     - name: Download Radxa ARM GCC 4.6 toolchain
       run: |
         git clone --depth 1 https://github.com/radxa/android-platform-prebuilts-gcc-linux-x86-arm-arm-eabi-4.6.git $HOME/toolchain
-        # Verify toolchain runs
         $HOME/toolchain/bin/arm-eabi-gcc --version
 
-    - name: Build Kernel zImage
+    - name: Clone official TeamHackLG Kernel (android-msm-3.4-kk)
+      run: |
+        echo "Cloning official TeamHackLG lge-kernel-lproj..."
+        git clone --depth 1 -b android-msm-3.4-kk https://github.com/TeamHackLG/lge-kernel-lproj.git kernel_src
+
+    - name: Apply Android 2.3 TLS fix and configure defconfig
+      run: |
+        # Patch tls.h: in set_tls_v6k, store TLS pointer at 0xffff0ff0
+        python3 -c "
+        path = 'kernel_src/arch/arm/include/asm/tls.h'
+        with open(path, 'r') as f: content = f.read()
+        target = '''\t.macro set_tls_v6k, tp, tmp1, tmp2\n\tmcr\tp15, 0, \\tp, c13, c0, 3\t\t@ set TLS register\n\tmov\t\\tmp1, #0\n\tmcr\tp15, 0, \\tmp1, c13, c0, 2\t@ clear user r/w TLS register\n\t.endm'''
+        replacement = '''\t.macro set_tls_v6k, tp, tmp1, tmp2\n\tmcr\tp15, 0, \\tp, c13, c0, 3\t\t@ set TLS register\n\tmov\t\\tmp1, #0\n\tmcr\tp15, 0, \\tmp1, c13, c0, 2\t@ clear user r/w TLS register\n\tmov\t\\tmp2, #0xffff0fff\n\tstr\t\\tp, [\\tmp2, #-15]\t\t@ set TLS value at 0xffff0ff0\n\t.endm'''
+        assert target in content, 'target not in tls.h'
+        content = content.replace(target, replacement)
+        with open(path, 'w') as f: f.write(content)
+        print('Successfully patched tls.h!')
+        "
+
+        # Patch traps.c: in case NR(set_tls), always store at 0xffff0ff0
+        python3 -c "
+        path = 'kernel_src/arch/arm/kernel/traps.c'
+        with open(path, 'r') as f: content = f.read()
+        target = '''\tcase NR(set_tls):\n\t\tthread->tp_value = regs->ARM_r0;\n\t\tif (tls_emu)\n\t\t\treturn 0;\n\t\tif (has_tls_reg) {\n\t\t\tasm (\"mcr p15, 0, %0, c13, c0, 3\"\n\t\t\t\t: : \"r\" (regs->ARM_r0));\n\t\t} else {\n\t\t\t/*\n\t\t\t * User space must never try to access this directly.\n\t\t\t * Expect your app to break eventually if you do so.\n\t\t\t * The user helper at 0xffff0fe0 must be used instead.\n\t\t\t * (see entry-armv.S for details)\n\t\t\t */\n\t\t\t*((unsigned int *)0xffff0ff0) = regs->ARM_r0;\n\t\t}\n\t\treturn 0;'''
+        replacement = '''\tcase NR(set_tls):\n\t\tthread->tp_value = regs->ARM_r0;\n\t\tif (tls_emu)\n\t\t\treturn 0;\n\t\tif (has_tls_reg) {\n\t\t\tasm (\"mcr p15, 0, %0, c13, c0, 3\"\n\t\t\t\t: : \"r\" (regs->ARM_r0));\n\t\t}\n\t\t*((unsigned int *)0xffff0ff0) = regs->ARM_r0;\n\t\treturn 0;'''
+        assert target in content, 'target not in traps.c'
+        content = content.replace(target, replacement)
+        with open(path, 'w') as f: f.write(content)
+        print('Successfully patched traps.c!')
+        "
+
+        # Disable SELinux and ensure DAC in defconfig
+        python3 -c "
+        path = 'kernel_src/arch/arm/configs/cyanogenmod_m4_defconfig'
+        with open(path, 'r') as f: content = f.read()
+        content += '\n# CONFIG_SECURITY is not set\nCONFIG_DEFAULT_SECURITY_DAC=y\nCONFIG_DEFAULT_SECURITY=\"\"\n'
+        with open(path, 'w') as f: f.write(content)
+        print('Successfully configured cyanogenmod_m4_defconfig for Android 2.3!')
+        "
+
+    - name: Build Official TeamHackLG Kernel zImage
       run: |
         export PATH=$HOME/toolchain/bin:$PATH
         export ARCH=arm
         export CROSS_COMPILE=arm-eabi-
 
-        # Make sure all helper scripts are executable
+        cd kernel_src
         chmod -R +x scripts/
-
         make cyanogenmod_m4_defconfig
         make -j$(nproc) zImage
+        cd ..
 
     - name: Package boot.img images
       run: |
         mkdir -p out
-        cp arch/arm/boot/zImage out/zImage
+        cp kernel_src/arch/arm/boot/zImage out/zImage
 
-        # Real Android boot image (2048 and 4096 pagesize)
-        if [ -f ramdisk_real_android.img ]; then
+        # CM7 boot image with wrapper (logger + wait loop + adbd)
+        if [ -f ramdisk_clean_wrapper.img ]; then
           python3 scripts/mkbootimg.py \
             --kernel out/zImage \
-            --ramdisk ramdisk_real_android.img \
+            --ramdisk ramdisk_clean_wrapper.img \
             --base 0x00200000 \
-            --pagesize 2048 \
+            --pagesize 4096 \
             --kernel_offset 0x00008000 \
             --ramdisk_offset 0x01200000 \
             --tags_offset 0x00000100 \
-            --cmdline "console=tty0 console=ttyMSM0,115200,n8 androidboot.hardware=m4 loglevel=7 lge.signed_image=false" \
-            -o out/boot-real-android.img
-          echo "Created out/boot-real-android.img (pagesize 2048)"
+            --cmdline "androidboot.hardware=m4 lge.signed_image=false" \
+            -o out/boot-cm7-m4.img
+          echo "Created out/boot-cm7-m4.img (pagesize 4096)"
+        fi
 
+        # Real Android boot image (4096 pagesize)
+        if [ -f ramdisk_real_android.img ]; then
           python3 scripts/mkbootimg.py \
             --kernel out/zImage \
             --ramdisk ramdisk_real_android.img \
@@ -84,33 +112,6 @@ jobs:
             --cmdline "androidboot.hardware=m4 lge.signed_image=false" \
             -o out/boot-real-android-4096.img
           echo "Created out/boot-real-android-4096.img (pagesize 4096)"
-        fi
-
-        # Diagnostic FB test boot image (2048 and 4096 pagesize)
-        if [ -f ramdisk_fbtest.img ]; then
-          python3 scripts/mkbootimg.py \
-            --kernel out/zImage \
-            --ramdisk ramdisk_fbtest.img \
-            --base 0x00200000 \
-            --pagesize 2048 \
-            --kernel_offset 0x00008000 \
-            --ramdisk_offset 0x01200000 \
-            --tags_offset 0x00000100 \
-            --cmdline "console=tty0 console=ttyMSM0,115200,n8 androidboot.hardware=m4 debug ignore_loglevel loglevel=8 log_buf_len=1M lge.signed_image=false" \
-            -o out/boot-fbtest.img
-          echo "Created out/boot-fbtest.img (pagesize 2048)"
-
-          python3 scripts/mkbootimg.py \
-            --kernel out/zImage \
-            --ramdisk ramdisk_fbtest.img \
-            --base 0x00200000 \
-            --pagesize 4096 \
-            --kernel_offset 0x00008000 \
-            --ramdisk_offset 0x01200000 \
-            --tags_offset 0x00000100 \
-            --cmdline "console=tty0 console=ttyMSM0,115200,n8 androidboot.hardware=m4 debug ignore_loglevel loglevel=8 log_buf_len=1M lge.signed_image=false" \
-            -o out/boot-fbtest-4096.img
-          echo "Created out/boot-fbtest-4096.img (pagesize 4096)"
         fi
 
     - name: Upload Kernel and boot.img artifacts
