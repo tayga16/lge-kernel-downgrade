@@ -37,15 +37,16 @@ else:
 with open(traps_path, 'w', encoding='utf-8') as f:
     f.write(traps_content)
 
-# 3. Configure cyanogenmod_m4_defconfig
-defconfig_path = os.path.join('kernel_src', 'arch', 'arm', 'configs', 'cyanogenmod_m4_defconfig')
-with open(defconfig_path, 'r', encoding='utf-8') as f:
-    def_content = f.read()
-
-def_content += '\n# CONFIG_SECURITY is not set\nCONFIG_DEFAULT_SECURITY_DAC=y\nCONFIG_DEFAULT_SECURITY=""\n'
-with open(defconfig_path, 'w', encoding='utf-8') as f:
-    f.write(def_content)
-print("Configured cyanogenmod_m4_defconfig successfully!")
+# 3. Use 100% verified working PhilZ recovery kernel config (with TLS fix & no SELinux)
+src_cfg = 'e610_working.config'
+dst_cfg1 = os.path.join('kernel_src', 'arch', 'arm', 'configs', 'cyanogenmod_m4_defconfig')
+dst_cfg2 = os.path.join('kernel_src', '.config')
+if os.path.exists(src_cfg):
+    shutil.copy(src_cfg, dst_cfg1)
+    shutil.copy(src_cfg, dst_cfg2)
+    print("Copied e610_working.config directly into kernel config!")
+else:
+    print("Warning: e610_working.config not found!")
 
 # 4. Copy modern python3-compatible gcc-wrapper.py
 gw_src = os.path.join('scripts', 'gcc-wrapper.py')
