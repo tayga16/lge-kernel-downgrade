@@ -142,7 +142,7 @@ void __init msm_msm7627a_allocate_memory_regions(void)
 	pr_info("allocating %lu bytes at %p (%lx physical) for fb\n", fb_size,
 						addr, __pa(addr));
 
-#ifdef CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE
+#if 0 /* CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE not supported on m4 */
 	fb_size = MSM_V4L2_VIDEO_OVERLAY_BUF_SIZE;
 	addr = alloc_bootmem_align(fb_size, 0x1000);
 	msm_v4l2_video_overlay_resources[0].start = __pa(addr);
