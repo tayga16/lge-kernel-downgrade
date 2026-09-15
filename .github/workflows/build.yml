@@ -34,38 +34,7 @@ jobs:
 
     - name: Apply Android 2.3 TLS fix and configure defconfig
       run: |
-        # Patch tls.h: in set_tls_v6k, store TLS pointer at 0xffff0ff0
-        python3 -c "
-        path = 'kernel_src/arch/arm/include/asm/tls.h'
-        with open(path, 'r') as f: content = f.read()
-        target = '''\t.macro set_tls_v6k, tp, tmp1, tmp2\n\tmcr\tp15, 0, \\tp, c13, c0, 3\t\t@ set TLS register\n\tmov\t\\tmp1, #0\n\tmcr\tp15, 0, \\tmp1, c13, c0, 2\t@ clear user r/w TLS register\n\t.endm'''
-        replacement = '''\t.macro set_tls_v6k, tp, tmp1, tmp2\n\tmcr\tp15, 0, \\tp, c13, c0, 3\t\t@ set TLS register\n\tmov\t\\tmp1, #0\n\tmcr\tp15, 0, \\tmp1, c13, c0, 2\t@ clear user r/w TLS register\n\tmov\t\\tmp2, #0xffff0fff\n\tstr\t\\tp, [\\tmp2, #-15]\t\t@ set TLS value at 0xffff0ff0\n\t.endm'''
-        assert target in content, 'target not in tls.h'
-        content = content.replace(target, replacement)
-        with open(path, 'w') as f: f.write(content)
-        print('Successfully patched tls.h!')
-        "
-
-        # Patch traps.c: in case NR(set_tls), always store at 0xffff0ff0
-        python3 -c "
-        path = 'kernel_src/arch/arm/kernel/traps.c'
-        with open(path, 'r') as f: content = f.read()
-        target = '''\tcase NR(set_tls):\n\t\tthread->tp_value = regs->ARM_r0;\n\t\tif (tls_emu)\n\t\t\treturn 0;\n\t\tif (has_tls_reg) {\n\t\t\tasm (\"mcr p15, 0, %0, c13, c0, 3\"\n\t\t\t\t: : \"r\" (regs->ARM_r0));\n\t\t} else {\n\t\t\t/*\n\t\t\t * User space must never try to access this directly.\n\t\t\t * Expect your app to break eventually if you do so.\n\t\t\t * The user helper at 0xffff0fe0 must be used instead.\n\t\t\t * (see entry-armv.S for details)\n\t\t\t */\n\t\t\t*((unsigned int *)0xffff0ff0) = regs->ARM_r0;\n\t\t}\n\t\treturn 0;'''
-        replacement = '''\tcase NR(set_tls):\n\t\tthread->tp_value = regs->ARM_r0;\n\t\tif (tls_emu)\n\t\t\treturn 0;\n\t\tif (has_tls_reg) {\n\t\t\tasm (\"mcr p15, 0, %0, c13, c0, 3\"\n\t\t\t\t: : \"r\" (regs->ARM_r0));\n\t\t}\n\t\t*((unsigned int *)0xffff0ff0) = regs->ARM_r0;\n\t\treturn 0;'''
-        assert target in content, 'target not in traps.c'
-        content = content.replace(target, replacement)
-        with open(path, 'w') as f: f.write(content)
-        print('Successfully patched traps.c!')
-        "
-
-        # Disable SELinux and ensure DAC in defconfig
-        python3 -c "
-        path = 'kernel_src/arch/arm/configs/cyanogenmod_m4_defconfig'
-        with open(path, 'r') as f: content = f.read()
-        content += '\n# CONFIG_SECURITY is not set\nCONFIG_DEFAULT_SECURITY_DAC=y\nCONFIG_DEFAULT_SECURITY=\"\"\n'
-        with open(path, 'w') as f: f.write(content)
-        print('Successfully configured cyanogenmod_m4_defconfig for Android 2.3!')
-        "
+        python3 scripts/patch_teamhack.py
 
     - name: Build Official TeamHackLG Kernel zImage
       run: |
