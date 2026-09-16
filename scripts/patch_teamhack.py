@@ -60,6 +60,106 @@ else:
 with open(mmu_path, 'w', encoding='utf-8') as f:
     f.write(mmu_content)
 
+# 2.6. Patch board-msm7x27a_m4.c for Android 2.3 PMEM GPU devices
+board_m4 = os.path.join('kernel_src', 'arch', 'arm', 'mach-msm', 'lge', 'm4', 'board-msm7x27a_m4.c')
+if os.path.exists(board_m4):
+    with open(board_m4, 'r', encoding='utf-8') as f:
+        b_content = f.read()
+
+    pmem_defs = """
+#ifdef CONFIG_ANDROID_PMEM
+#include <linux/android_pmem.h>
+
+static struct android_pmem_platform_data android_pmem_gpu0_pdata = {
+	.name = "pmem_gpu0",
+	.size = 16 * 1024 * 1024,
+	.memory_type = MEMTYPE_EBI1,
+	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
+	.cached = 0,
+};
+
+static struct platform_device android_pmem_gpu0_device = {
+	.name = "android_pmem",
+	.id = 0,
+	.dev = {
+		.platform_data = &android_pmem_gpu0_pdata,
+	},
+};
+
+static struct android_pmem_platform_data android_pmem_gpu1_pdata = {
+	.name = "pmem_gpu1",
+	.size = 8 * 1024 * 1024,
+	.memory_type = MEMTYPE_EBI1,
+	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
+	.cached = 0,
+};
+
+static struct platform_device android_pmem_gpu1_device = {
+	.name = "android_pmem",
+	.id = 1,
+	.dev = {
+		.platform_data = &android_pmem_gpu1_pdata,
+	},
+};
+
+static struct android_pmem_platform_data android_pmem_pdata = {
+	.name = "pmem",
+	.size = 8 * 1024 * 1024,
+	.memory_type = MEMTYPE_EBI1,
+	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
+	.cached = 0,
+};
+
+static struct platform_device android_pmem_device = {
+	.name = "android_pmem",
+	.id = 2,
+	.dev = {
+		.platform_data = &android_pmem_pdata,
+	},
+};
+
+static struct android_pmem_platform_data android_pmem_adsp_pdata = {
+	.name = "pmem_adsp",
+	.size = 8 * 1024 * 1024,
+	.memory_type = MEMTYPE_EBI1,
+	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
+	.cached = 0,
+};
+
+static struct platform_device android_pmem_adsp_device = {
+	.name = "android_pmem",
+	.id = 3,
+	.dev = {
+		.platform_data = &android_pmem_adsp_pdata,
+	},
+};
+#endif
+"""
+    target_common = "static struct platform_device *common_devices[] __initdata = {"
+    replacement_common = pmem_defs + "\n" + target_common + """
+#ifdef CONFIG_ANDROID_PMEM
+	&android_pmem_gpu0_device,
+	&android_pmem_gpu1_device,
+	&android_pmem_device,
+	&android_pmem_adsp_device,
+#endif"""
+    if target_common in b_content:
+        b_content = b_content.replace(target_common, replacement_common)
+        print("Patched board-msm7x27a_m4.c: added PMEM devices to common_devices!")
+
+    target_res = "fix_sizes();"
+    replacement_res = """fix_sizes();
+#ifdef CONFIG_ANDROID_PMEM
+	msm7x27a_reserve_table[MEMTYPE_EBI1].size += (16 + 8 + 8 + 8) * 1024 * 1024;
+#endif"""
+    if target_res in b_content:
+        b_content = b_content.replace(target_res, replacement_res)
+        print("Patched board-msm7x27a_m4.c: added PMEM memory reservation!")
+
+    with open(board_m4, 'w', encoding='utf-8') as f:
+        f.write(b_content)
+
+
 # 3. Use 100% verified working PhilZ recovery kernel config (with TLS fix & no SELinux)
 src_cfg = 'e610_working.config'
 dst_cfg1 = os.path.join('kernel_src', 'arch', 'arm', 'configs', 'cyanogenmod_m4_defconfig')
