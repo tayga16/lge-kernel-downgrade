@@ -45,7 +45,11 @@ jobs:
         cd kernel_src
         chmod -R +x scripts/
         make cyanogenmod_m4_defconfig
+        ./scripts/config --enable CONFIG_ANDROID_PMEM
+        make oldnoconfig || make silentoldconfig || true
+        grep "CONFIG_ANDROID_PMEM" .config || true
         make -j$(nproc) zImage
+        test -f drivers/misc/pmem.o && echo "SUCCESS: pmem.o compiled!" || (echo "ERROR: pmem.o failed to compile!" && exit 1)
         cd ..
 
     - name: Package boot.img images

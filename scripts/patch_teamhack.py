@@ -159,6 +159,47 @@ static struct platform_device android_pmem_adsp_device = {
     with open(board_m4, 'w', encoding='utf-8') as f:
         f.write(b_content)
 
+# 2.7. Copy pmem.c and android_pmem.h and patch drivers/misc/Makefile and drivers/misc/Kconfig
+pmem_src = os.path.join('drivers', 'misc', 'pmem.c')
+pmem_dst = os.path.join('kernel_src', 'drivers', 'misc', 'pmem.c')
+if os.path.exists(pmem_src):
+    shutil.copy(pmem_src, pmem_dst)
+    print("Copied pmem.c to kernel_src/drivers/misc/pmem.c")
+else:
+    print("Warning: pmem.c not found at", pmem_src)
+
+pmem_h_src = os.path.join('include', 'linux', 'android_pmem.h')
+pmem_h_dst = os.path.join('kernel_src', 'include', 'linux', 'android_pmem.h')
+if os.path.exists(pmem_h_src):
+    shutil.copy(pmem_h_src, pmem_h_dst)
+    print("Copied android_pmem.h to kernel_src/include/linux/android_pmem.h")
+
+misc_mk = os.path.join('kernel_src', 'drivers', 'misc', 'Makefile')
+if os.path.exists(misc_mk):
+    with open(misc_mk, 'r', encoding='utf-8') as f:
+        mk_content = f.read()
+    if 'CONFIG_ANDROID_PMEM' not in mk_content:
+        mk_content += "\nobj-$(CONFIG_ANDROID_PMEM) += pmem.o\n"
+        with open(misc_mk, 'w', encoding='utf-8') as f:
+            f.write(mk_content)
+        print("Patched kernel_src/drivers/misc/Makefile: added pmem.o!")
+
+misc_kc = os.path.join('kernel_src', 'drivers', 'misc', 'Kconfig')
+if os.path.exists(misc_kc):
+    with open(misc_kc, 'r', encoding='utf-8') as f:
+        kc_content = f.read()
+    if 'config ANDROID_PMEM' not in kc_content:
+        pmem_kconfig = """
+config ANDROID_PMEM
+	bool "Android pmem allocator"
+	default y
+
+"""
+        kc_content = kc_content.replace('menu "Misc devices"', 'menu "Misc devices"\n' + pmem_kconfig)
+        with open(misc_kc, 'w', encoding='utf-8') as f:
+            f.write(kc_content)
+        print("Patched kernel_src/drivers/misc/Kconfig: added ANDROID_PMEM!")
+
 
 # 3. Use 100% verified working PhilZ recovery kernel config (with TLS fix & no SELinux)
 src_cfg = 'e610_working.config'
